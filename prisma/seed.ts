@@ -39,6 +39,14 @@ async function main() {
       aboutSlug: "aimaiko",
       aboutContent: "仕様曖昧子と申します。仲良くしてください。",
     },
+    {
+      name: "RN MT",
+      password: "password3333",
+      email: "TTTTTTTTTTTTTTTTTTTT@gmail.com",
+      role: Role.USER,
+      aboutSlug: "rnmt",
+      aboutContent: "RN MTです。<br>React NativeのMT（マスター）です。",
+    },
   ];
 
   // userSeedSchema を使って UserSeeds のバリデーション

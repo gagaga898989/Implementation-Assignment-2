@@ -140,7 +140,7 @@ const Page: React.FC = () => {
       {name && (
         <div className="mt-4 ml-4 flex text-sm text-slate-600">
           {/* サニタイズされていない値を dangerouslySetInnerHTML で出力（💀超危険） */}
-          <span dangerouslySetInnerHTML={{ __html: name }} className="mr-1" />
+          <span className="mr-1">{name}</span>
           さん、こんにちは！
         </div>
       )}

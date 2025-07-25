@@ -8,7 +8,7 @@ import { CartSession } from "@prisma/client";
 export const GET = async (req: NextRequest) => {
   try {
     const cKey = "cart_session_id";
-    const sessionMaxAge = 60 * 60 * 3; // 3時間
+    const sessionMaxAge = 60; // 3時間
     const now = new Date();
 
     const cookieStore = await cookies();
