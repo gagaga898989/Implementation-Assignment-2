@@ -7,6 +7,8 @@ import { NextResponse, NextRequest } from "next/server";
 import { createSession } from "@/app/api/_helper/createSession";
 import { createJwt } from "@/app/api/_helper/createJwt";
 import { AUTH } from "@/config/auth";
+import bcrypt from "bcryptjs";
+import { setPending2FA } from "@/app/api/_helper/pending2fa";
 
 // キャッシュを無効化して毎回最新情報を取得
 export const dynamic = "force-dynamic";
@@ -16,6 +18,7 @@ export const revalidate = 0;
 export const POST = async (req: NextRequest) => {
   try {
     const result = loginRequestSchema.safeParse(await req.json());
+
     if (!result.success) {
       const res: ApiResponse<null> = {
         success: false,
@@ -24,49 +27,55 @@ export const POST = async (req: NextRequest) => {
       };
       return NextResponse.json(res);
     }
-    const loginRequest = result.data;
 
+    const loginRequest = result.data;
     const user = await prisma.user.findUnique({
       where: { email: loginRequest.email },
     });
+
+    const genericErrorMessage =
+      "メールアドレスまたはパスワードの組み合わせが正しくありません。";
+
     if (!user) {
-      // 💀 このアカウント（メールアドレス）の有効無効が分かってしまう。
-      const res: ApiResponse<null> = {
+      return NextResponse.json({
         success: false,
         payload: null,
-        message: "このメールアドレスは登録されていません。",
-        // message: "メールアドレスまたはパスワードの組み合わせが正しくありません。",
-      };
-      return NextResponse.json(res);
+        message: genericErrorMessage,
+      });
     }
 
-    // パスワードの検証
-    // ✍ bcrypt でハッシュ化したパスワードを検証ように書き換えよ。
-    const isValidPassword = user.password === loginRequest.password;
+    const isValidPassword = await bcrypt.compare(
+      loginRequest.password,
+      user.password
+    );
+
     if (!isValidPassword) {
-      const res: ApiResponse<null> = {
+      return NextResponse.json({
         success: false,
         payload: null,
-        message:
-          "メールアドレスまたはパスワードの組み合わせが正しくありません。",
-      };
-      return NextResponse.json(res);
+        message: genericErrorMessage,
+      });
     }
 
     const tokenMaxAgeSeconds = 60 * 60 * 3; // 3時間
 
+    // ✅ ここで pending 2FA クッキーを付与
+    await setPending2FA(user.id);
+
     if (AUTH.isSession) {
-      // ■■ セッションベース認証の処理 ■■
+      // ■■ セッションベース認証 ■■
       await createSession(user.id, tokenMaxAgeSeconds);
+
       const res: ApiResponse<UserProfile> = {
         success: true,
-        payload: userProfileSchema.parse(user), // 余分なプロパティを削除
+        payload: userProfileSchema.parse(user),
         message: "",
       };
       return NextResponse.json(res);
     } else {
-      // ■■ トークンベース認証の処理 ■■
+      // ■■ トークンベース認証 ■■
       const jwt = await createJwt(user, tokenMaxAgeSeconds);
+
       const res: ApiResponse<string> = {
         success: true,
         payload: jwt,
@@ -76,11 +85,12 @@ export const POST = async (req: NextRequest) => {
     }
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : "Internal Server Error";
-    console.error(errorMsg);
+    console.error("Login Error:", errorMsg);
+
     const res: ApiResponse<null> = {
       success: false,
       payload: null,
-      message: "ログインのサーバサイドの処理に失敗しました。",
+      message: "ログインに失敗しました。",
     };
     return NextResponse.json(res);
   }

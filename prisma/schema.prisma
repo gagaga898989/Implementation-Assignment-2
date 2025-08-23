@@ -1,12 +1,3 @@
-// 更新後は
-// npx prisma db push
-// npx prisma generate
-// ( >Developer: Reload Window ) 
-// npx prisma db seed
-// https://supabase.com/dashboard/project/bodqloucedxxzyncfrab
-
-// DBの確認は
-// npx prisma studio
 generator client {
   provider = "prisma-client-js"
 }
@@ -34,12 +25,18 @@ model User {
   name         String
   role         Role        @default(USER)
   aboutSlug    String?     @map("about_slug") @unique
-  aboutContent String      @default("") 
+  aboutContent String      @default("")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
   lastLoginAt  DateTime?   @map("last_login_at")
 
+  // ▼▼ 追加（2FA）
+  twoFactorEnabled   Boolean  @default(false)  @map("two_factor_enabled")
+  twoFactorSecretEnc String?                      @map("two_factor_secret_enc")
+  twoFactorTempEnc   String?                      @map("two_factor_temp_enc")
+
   sessions     Session[]
+  backupCodes  BackupCode[]
 
   @@map("users")
 }
@@ -76,7 +73,7 @@ model Product {
   id          String   @id
   name        String
   price       Int
-  CartItem    CartItem[]  
+  CartItem    CartItem[]
   @@map("products")
 }
 
@@ -85,7 +82,7 @@ model CartSession{
   expiresAt  DateTime  @map("expires_at")
   CartItem   CartItem[]
 
-  @@index([expiresAt]) // 有効期限切れの高速検索用
+  @@index([expiresAt])
   @@map("cart_sessions")
 }
 
@@ -101,4 +98,16 @@ model CartItem {
   @@index([cartSessionId])
   @@unique([cartSessionId, productId])
   @@map("cart_items")
+}
+
+// ▼▼ 新規（バックアップコード）
+model BackupCode {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  hash      String
+  usedAt    DateTime?
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("backup_codes")
+  @@index([userId])
 }

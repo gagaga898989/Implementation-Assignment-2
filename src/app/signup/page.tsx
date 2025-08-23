@@ -1,8 +1,5 @@
 "use client";
 
-// ServerAction (Custom Invocation) を利用した実装
-// （ /api/signup のようなAPIエンドポイントを実装する必要がない ）
-
 import React, { useState, useEffect, useTransition } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,28 +20,21 @@ const Page: React.FC = () => {
   const c_Password = "password";
 
   const router = useRouter();
-
   const [isPending, startTransition] = useTransition();
   const [isSignUpCompleted, setIsSignUpCompleted] = useState(false);
 
-  // フォーム処理関連の準備と設定
   const formMethods = useForm<SignupRequest>({
     mode: "onChange",
     resolver: zodResolver(signupRequestSchema),
   });
   const fieldErrors = formMethods.formState.errors;
 
-  // ルートエラー（サーバサイドで発生した認証エラー）の表示設定の関数
   const setRootError = (errorMsg: string) => {
-    formMethods.setError("root", {
-      type: "manual",
-      message: errorMsg,
-    });
+    formMethods.setError("root", { type: "manual", message: errorMsg });
   };
 
-  // ルートエラーメッセージのクリアに関する設定
   useEffect(() => {
-    const subscription = formMethods.watch((value, { name }) => {
+    const subscription = formMethods.watch((_, { name }) => {
       if (name === c_Email || name === c_Password) {
         formMethods.clearErrors("root");
       }
@@ -52,20 +42,19 @@ const Page: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [formMethods]);
 
-  // ログイン完了後のリダイレクト処理
+  // ✅ サインアップ完了後、自動的にログインページへリダイレクト
   useEffect(() => {
     if (isSignUpCompleted) {
-      router.replace(`/login?${c_Email}=${formMethods.getValues(c_Email)}`);
-      router.refresh();
-      console.log("サインアップ完了");
+      const timer = setTimeout(() => {
+        router.replace("/faste");
+      }, 1500); // 1.5秒後にリダイレクト（完了メッセージを少し見せる）
+      return () => clearTimeout(timer);
     }
-  }, [formMethods, isSignUpCompleted, router]);
+  }, [isSignUpCompleted, router]);
 
-  // フォームの送信処理
   const onSubmit = async (signupRequest: SignupRequest) => {
     try {
       startTransition(async () => {
-        // ServerAction (Custom Invocation) の利用
         const res = await signupServerAction(signupRequest);
         if (!res.success) {
           setRootError(res.message);
@@ -158,10 +147,10 @@ const Page: React.FC = () => {
         <div>
           <div className="mt-4 flex items-center gap-x-2">
             <FontAwesomeIcon icon={faSpinner} spin />
-            <div>サインアップが完了しました。ログインページに移動します。</div>
+            <div>サインアップが完了しました。ログイン画面に移動します。</div>
           </div>
           <NextLink
-            href={`/login?${c_Email}=${formMethods.getValues(c_Email)}`}
+            href={`/faste`}
             className="text-blue-500 hover:underline"
           >
             自動的に画面が切り替わらないときはこちらをクリックしてください。

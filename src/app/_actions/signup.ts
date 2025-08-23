@@ -6,6 +6,8 @@ import { userProfileSchema } from "@/app/_types/UserProfile";
 import type { SignupRequest } from "@/app/_types/SignupRequest";
 import type { UserProfile } from "@/app/_types/UserProfile";
 import type { ServerActionResponse } from "@/app/_types/ServerActionResponse";
+import bcrypt from "bcryptjs";
+
 
 // ユーザのサインアップのサーバアクション
 export const signupServerAction = async (
@@ -13,30 +15,25 @@ export const signupServerAction = async (
 ): Promise<ServerActionResponse<UserProfile | null>> => {
   try {
     // 入力検証
-    // 💀 現状では日本語のPWも受入れてしまう -> SignupRequest のバリデーション見直し
     const payload = signupRequestSchema.parse(signupRequest);
 
     // 💡スパム登録対策（1秒遅延）
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // 既に登録済みユーザのサインアップではないか確認
+    // 既に登録済みユーザの確認（メッセージは漏らさない）
     const existingUser = await prisma.user.findUnique({
       where: { email: payload.email },
     });
     if (existingUser) {
-      // 💀 このアカウントがシステムに存在することを知らせてしまうことになる。
-      // 認証メールを送信するなどの方法が望ましい
       return {
         success: false,
         payload: null,
-        message: "このメールアドレスは既に使用されています。",
+        message: "登録に失敗しました。", // 詳細は内部でログに残す
       };
     }
 
     // パスワードのハッシュ化
-    // 💀 ハッシュ化せずにPW保存（ダメ絶対）
-    const hashedPassword = payload.password;
-    // const hashedPassword = await bcrypt.hash(payload.password, 10);
+    const hashedPassword = await bcrypt.hash(payload.password, 10);
 
     // ユーザの作成
     const user = await prisma.user.create({
@@ -47,24 +44,20 @@ export const signupServerAction = async (
       },
     });
 
-    // レスポンスの生成
-    // 💀 パスワードは無論、不要な情報はレスポンスしない。
+    // レスポンスの生成（パスワードは除外）
     const res: ServerActionResponse<UserProfile> = {
       success: true,
-      payload: userProfileSchema.parse(user), // 余分なプロパティを削除,
+      payload: userProfileSchema.parse(user),
       message: "",
     };
     return res;
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : "Internal Server Error";
-    console.error(errorMsg);
+    console.error("SignupServerAction Error:", errorMsg); // 内部ログ
     return {
       success: false,
       payload: null,
-      message: errorMsg,
-      // 💀 エラーメッセージはユーザに見せない方が良い
-      // システム内部構造や依存関係をユーザに漏らす可能性がある
-      // message: "サインアップのサーバサイドの処理に失敗しました。",
+      message: "登録に失敗しました。", // ユーザ向けメッセージは安全なものに
     };
   }
 };

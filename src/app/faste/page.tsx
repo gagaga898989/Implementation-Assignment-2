@@ -47,7 +47,7 @@ const Page: React.FC = () => {
   }, [formMethods]);
 
   useEffect(() => {
-    const subscription = formMethods.watch((_, { name }) => {
+    const subscription = formMethods.watch((value, { name }) => {
       if (name === c_Email || name === c_Password) {
         formMethods.clearErrors("root");
       }
@@ -55,10 +55,10 @@ const Page: React.FC = () => {
     return () => subscription.unsubscribe();
   }, [formMethods]);
 
-  // ✅ ログイン完了後は 2FA ログイン画面へ
+  // ✅ ログイン完了後は 2FA 入力ページにリダイレクト
   useEffect(() => {
     if (isLoginCompleted) {
-      router.replace("/2fa/login");
+      router.replace("/2fa/setup");
       router.refresh();
     }
   }, [isLoginCompleted, router]);
@@ -169,7 +169,7 @@ const Page: React.FC = () => {
             <FontAwesomeIcon icon={faSpinner} spin />
             <div>ようこそ、{userProfile?.name} さん。</div>
           </div>
-          {/* ⬇ フォールバックの手動リンクも /2fa/login に変更 */}
+          {/* ✅ リンク先を 2FA ログインに修正 */}
           <NextLink href="/2fa/login" className="text-blue-500 hover:underline">
             自動的に画面が切り替わらないときはこちらをクリックしてください。
           </NextLink>
