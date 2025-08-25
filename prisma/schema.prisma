@@ -35,6 +35,9 @@ model User {
   twoFactorSecretEnc String?                      @map("two_factor_secret_enc")
   twoFactorTempEnc   String?                      @map("two_factor_temp_enc")
 
+  failedAttempts Int      @default(0)      // 連続失敗回数
+  lockUntil      DateTime?                 // ロック解除予定時刻
+
   sessions     Session[]
   backupCodes  BackupCode[]
 

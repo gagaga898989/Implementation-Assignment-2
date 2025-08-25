@@ -24,6 +24,7 @@ const Page: React.FC = () => {
 
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const [isLocked, setIsLocked] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoginCompleted, setIsLoginCompleted] = useState(false);
 
@@ -81,9 +82,17 @@ const Page: React.FC = () => {
 
       if (!res.ok) return;
 
-      const body = (await res.json()) as ApiResponse<unknown>;
+      const body = (await res.json()) as ApiResponse<unknown> & {
+        errorCode?: string;
+      };
+
       if (!body.success) {
         setRootError(body.message);
+
+        // 🔒 アカウントロック検知
+        if (body.errorCode === "ACCOUNT_LOCKED") {
+          setIsLocked(true);
+        }
         return;
       }
 
@@ -114,7 +123,7 @@ const Page: React.FC = () => {
         onSubmit={formMethods.handleSubmit(onSubmit)}
         className={twMerge(
           "mt-4 flex flex-col gap-y-4",
-          isLoginCompleted && "cursor-not-allowed opacity-50",
+          (isLoginCompleted || isLocked) && "cursor-not-allowed opacity-50",
         )}
       >
         <div>
@@ -126,7 +135,7 @@ const Page: React.FC = () => {
             id={c_Email}
             placeholder="name@example.com"
             type="email"
-            disabled={isPending || isLoginCompleted}
+            disabled={isPending || isLoginCompleted || isLocked}
             error={!!fieldErrors.email}
             autoComplete="email"
           />
@@ -142,7 +151,7 @@ const Page: React.FC = () => {
             id={c_Password}
             placeholder="*****"
             type="password"
-            disabled={isPending || isLoginCompleted}
+            disabled={isPending || isLoginCompleted || isLocked}
             error={!!fieldErrors.password}
             autoComplete="off"
           />
@@ -156,7 +165,10 @@ const Page: React.FC = () => {
           className={twMerge("tracking-widest")}
           isBusy={isPending}
           disabled={
-            !formMethods.formState.isValid || isPending || isLoginCompleted
+            !formMethods.formState.isValid ||
+            isPending ||
+            isLoginCompleted ||
+            isLocked
           }
         >
           ログイン
@@ -169,7 +181,6 @@ const Page: React.FC = () => {
             <FontAwesomeIcon icon={faSpinner} spin />
             <div>ようこそ、{userProfile?.name} さん。</div>
           </div>
-          {/* ⬇ フォールバックの手動リンクも /2fa/login に変更 */}
           <NextLink href="/2fa/login" className="text-blue-500 hover:underline">
             自動的に画面が切り替わらないときはこちらをクリックしてください。
           </NextLink>
